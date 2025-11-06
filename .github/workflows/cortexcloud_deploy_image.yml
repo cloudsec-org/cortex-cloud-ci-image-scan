@@ -1,0 +1,72 @@
+name: Build and Scan with CortexCLI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    env:
+      CORTEX_API_URL: ${{ vars.CORTEX_API_URL }}
+      CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
+      CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
+      IMAGE_NAME: vulappcrtx
+      IMAGE_TAG: 0.0.1
+      IMAGE_TAR: vulappcrtx.tar
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Set up Node.js 
+        uses: actions/setup-node@v4 
+        with: 
+          node-version: 22
+
+      - name: Verify Node.js Version 
+        run: node -v
+
+#### No need to use docker image archive with cortexcli 0.14
+#      - name: Build Docker image and export as archive
+#        run: |
+#          docker buildx build \
+#            --output type=docker,dest=${{ env.IMAGE_TAR }} \
+#            -t $IMAGE_NAME:$IMAGE_TAG \
+#            .
+
+      - name: Build Docker image and export as archive
+        run: |
+          docker buildx build \
+            --load \
+            -t $IMAGE_NAME:$IMAGE_TAG \
+            .
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq xz-utils libhyperscan-dev libhyperscan5
+          
+
+      - name: Download and Install CortexCLI 
+        run: |
+          echo "Downloading CortexCLI..."
+          mkdir -p cortexcli
+          curl -s -o cortexcli/cortexcli $(curl -s "${CORTEX_API_URL}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" -H "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" -H "Authorization: ${CORTEX_API_KEY}" | jq -r ".signed_url")
+          chmod +x cortexcli/cortexcli
+          sudo mv cortexcli/cortexcli /usr/local/bin/
+          cortexcli --version
+
+      - name: Scan image archive with CortexCLI
+        run: |
+          cortexcli --api-base-url $CORTEX_API_URL --api-key $CORTEX_API_KEY --api-key-id $CORTEX_API_KEY_ID image scan --timeout 300 $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Upload Docker archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-tar
+          path: ${{ env.IMAGE_TAR }}
