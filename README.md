@@ -4,6 +4,10 @@ This GitHub Action allows you to **scan a container image** using **CortexCLI** 
 
 ---
 
+![Demo GIF](images/action_cortexcli.gif)
+
+
+
 ## 🚀 Overview
 
 The workflow performs the following steps:
