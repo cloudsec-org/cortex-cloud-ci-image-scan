@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           echo "🔍 Scanning image..."
-          cortexcli --api-base-url $CORTEX_API_URL \
+          cortexcli --log-level DEBUG --api-base-url $CORTEX_API_URL \
                     --api-key $CORTEX_API_KEY \
                     --api-key-id $CORTEX_API_KEY_ID \
                     image scan --timeout 300 \
